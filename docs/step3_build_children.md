@@ -1,24 +1,47 @@
 # Step 3B-2: Build Child Chunks
 
-## Purpose
+## Goal
 
-Step 3B-2 splits Step 3B-1 parent chunks into **child chunks** — the
-primary retrieval unit for embedding and BM25 search. Children are smaller
-than parents, fitting within embedding-model context limits, and carry
-additional text fields ready for indexing.
+Split Step 3B-1 parent chunks into **child chunks** — the primary retrieval
+unit for embedding and BM25 search. Children fit within embedding-model
+context limits and carry pre-formatted text fields ready for indexing.
 
-No text is rewritten, summarized, or otherwise modified. Child text is
-assembled exclusively from substrings of the parent text.
+---
 
-## Input / Output
+## Key Idea
 
-| | Path |
+Children are created by **greedy sentence grouping** within each parent:
+
+1. Decompose parent text into paragraphs → sentences → words.
+2. Group sentences greedily up to `child_max_tokens`.
+3. Add an **overlap prefix** to each non-first child so that context from
+   the previous child is preserved across chunk boundaries.
+4. Never cross a parent boundary — overlap does not carry over between
+   different parents.
+
+No text is rewritten. Child text is assembled only from substrings of the
+parent text. Two additional text fields are pre-formatted for indexing:
+`text_for_embedding` (prefixed with section path) and `text_for_bm25`
+(section path tokens prepended for keyword search).
+
+---
+
+## Inputs
+
+| Source | Path |
 |---|---|
-| Input | `data/index/{article_id}/parents.jsonl` |
-| Output children | `data/index/{article_id}/children.jsonl` |
-| Output manifest | `data/index/{article_id}/child_manifest.json` |
+| Parent chunks | `data/index/{article_id}/parents.jsonl` |
 
-## Child Schema
+---
+
+## Outputs
+
+| File | Path | Description |
+|---|---|---|
+| Child chunks | `data/index/{article_id}/children.jsonl` | One JSON object per line |
+| Manifest | `data/index/{article_id}/child_manifest.json` | Counts and parameters used |
+
+### Child Schema
 
 ```json
 {
@@ -42,95 +65,29 @@ assembled exclusively from substrings of the parent text.
 }
 ```
 
-### Field Descriptions
+| Field | Description |
+|---|---|
+| `chunk_id` | `{article_id}::child_{index:06d}` — globally unique |
+| `parent_id` | The parent chunk this child comes from |
+| `text` | Raw child text (substring of parent text) |
+| `text_for_embedding` | `"Section: {path}\n\n{text}"` — used for dense embedding |
+| `text_for_bm25` | `"{path tokens} {text}"` — used for sparse keyword search |
+| `span_is_approximate` | `true` when the overlap prefix shifts char offsets |
 
-| Field | Type | Description |
-|---|---|---|
-| `chunk_id` | string | `{article_id}::child_{index:06d}` — globally unique within the article |
-| `parent_id` | string | ID of the parent chunk this child comes from |
-| `article_id` | string | Article folder name |
-| `child_index` | int | 0-based sequential index within the article (across all parents) |
-| `child_index_within_parent` | int | 0-based sequential index within its parent |
-| `chunk_level` | string | Always `"child"` |
-| `chunk_type` | string | Inherited from parent: `body`, `figure_caption`, `table_caption`, `back_matter` |
-| `section_path` | list[str] | Inherited from parent |
-| `text` | string | Exact child text; may include an overlap prefix from the previous sibling |
-| `text_for_embedding` | string | Section/caption prefix followed by child text (see below) |
-| `text_for_bm25` | string | Section path words joined with spaces followed by child text |
-| `char_start` | int | Byte offset in `normalized.md`; uses `parent.char_start` as base |
-| `char_end` | int | Byte offset of last character in `normalized.md` |
-| `token_count` | int | Word-count estimate of `text` (recomputed from actual child text) |
-| `oversized` | bool | `true` if `token_count > child_max_tokens` |
-| `include_in_default_qa` | bool | Inherited from parent (always `false` for `back_matter`) |
-| `span_is_approximate` | bool | `true` when the child has an overlap prefix (span covers ≥ 2 positions in parent) |
+---
 
 ## Default Parameters
 
-| Parameter | Default | Meaning |
+| Parameter | Default | Description |
 |---|---|---|
-| `child_target_tokens` | 380 | Soft target size (informational; stored in manifest) |
-| `child_max_tokens` | 550 | Hard limit for the grouping algorithm |
-| `child_min_tokens` | 120 | Floor used in auditing; not enforced at build time |
-| `child_overlap_tokens` | 60 | Target size of the overlap prefix prepended to each non-first child |
+| `child_max_tokens` | 550 | Hard limit per child |
+| `child_target_tokens` | 380 | Soft target (informational) |
+| `child_min_tokens` | 120 | Audit floor |
+| `child_overlap_tokens` | 60 | Overlap prefix size from the previous child |
 
-## Splitting Algorithm
+---
 
-All blocks are split in `parent_index` order.  Within a parent:
-
-1. **Decompose into atomic units** (`_build_units`):
-   - Split parent text at `\n\n` into paragraphs.
-   - If a paragraph fits within `child_max_tokens`, it is a single unit.
-   - If a paragraph exceeds `child_max_tokens`, split by sentence boundaries
-     (`(?<=[.!?])\s+(?=[A-Z"(])`).
-   - If a sentence still exceeds `child_max_tokens`, split by words (hard
-     `child_max_tokens`-word chunks).
-
-2. **Group units** (`_group_units`):
-   - Pack units into groups greedily: accumulate until adding the next unit
-     would exceed `child_max_tokens`, then start a new group.
-
-3. **Add overlap** (`_overlap_suffix`):
-   - For each group after the first, prepend the tail of the previous group
-     fitting within `child_overlap_tokens`.
-   - Prefers whole paragraph/sentence units for the overlap.  If the last
-     unit alone exceeds the budget, falls back to a word-level suffix.
-
-4. **Join** within a group:
-   - Two units from different paragraphs are joined with `\n\n`.
-   - Two units from the same paragraph are joined with a single space.
-
-## Text Fields
-
-### `text`
-Exact assembled child text.  For non-first children, may include an overlap
-prefix from the preceding sibling.
-
-### `text_for_embedding`
-
-| `chunk_type` | Prefix |
-|---|---|
-| `body` / `back_matter` | `Section: PATH1 > PATH2\n\n{text}` |
-| `figure_caption` | `Figure caption: PATH1 > PATH2\n\n{text}` |
-| `table_caption` | `Table caption: PATH1 > PATH2\n\n{text}` |
-
-### `text_for_bm25`
-`"PATH1 PATH2 ... {text}"` — section path joined with spaces, then the child text.
-
-## Character Spans
-
-- `char_start` and `char_end` are byte offsets into the article's
-  `normalized.md` file.
-- Computed by finding `child.text` as an exact substring of `parent.text`
-  (deterministic substring search), then adding `parent.char_start` as the
-  base offset.
-- When the child includes an overlap prefix: `span_is_approximate = true`
-  because the span deliberately covers text from a preceding semantic region.
-- When no overlap: `span_is_approximate = false` (the span is an exact match
-  in the parent string).
-- Fallback (substring search fails): paragraph-level bounds from the source
-  units are used and `span_is_approximate = true`.
-
-## Running Step 3B-2
+## How to Run
 
 ```bash
 # Single article
@@ -139,34 +96,31 @@ python pipeline/step3_build_children.py --article-id pdf_16edbbde296287d6
 # All articles
 python pipeline/step3_build_children.py --all
 
-# Custom limits
-python pipeline/step3_build_children.py --all --child-max-tokens 600 --overwrite
+# Custom token limits
+python pipeline/step3_build_children.py --all --child-max-tokens 600 --child-overlap-tokens 80 --overwrite
 ```
 
-## Auditing
+---
 
-```bash
-python scripts/audit_child_chunks.py
-python scripts/audit_child_chunks.py --article-id pdf_16edbbde296287d6
-python scripts/audit_child_chunks.py --json
+## Python API
+
+```python
+from pathlib import Path
+from pipeline.step3_build_children import split_parent, process_article
+
+# Split a single parent dict into children
+children = split_parent(parent, article_id="pdf_abc", start_child_index=0,
+                        child_max_tokens=550, child_overlap_tokens=60)
+
+# Process a full article (reads parents.jsonl, writes children.jsonl)
+result = process_article("pdf_abc", data_root=Path("data"), overwrite=True)
 ```
+
+---
 
 ## Known Limitations
 
-- **`child_min_tokens` is not enforced**: very short children (e.g., a
-  single short caption sentence) are kept as-is.
-- **Sentence splitting is heuristic**: the regex
-  `(?<=[.!?])\s+(?=[A-Z"(])` does not handle abbreviations such as
-  "Dr.", "et al.", or "U.S.A." correctly — it may split mid-sentence.
-- **Token count uses word count**: `max(1, len(text.split()))` differs from
-  subword tokenisation; actual LLM token counts will vary for scientific
-  notation and LaTeX fragments.
-- **`child_target_tokens` is informational**: stored in the manifest but not
-  used during splitting.
-- **Overlap does not cross parent boundaries**: each child belongs to exactly
-  one parent.
-- **Overlap children may exceed `child_max_tokens`**: when a core segment is
-  near the token limit and the overlap prefix is prepended, the combined
-  `token_count` can exceed `child_max_tokens` by up to `child_overlap_tokens`
-  words.  The audit flags these as WARN; this is expected and not a data
-  integrity issue.
+- Sentence splitting uses a regex heuristic (`(?<=[.!?])\s+(?=[A-Z"(])`); abbreviations and mid-sentence capitals may split incorrectly.
+- Overlap does not cross parent boundaries.
+- Token count uses word count, not subword tokenization.
+- `child_min_tokens` is not enforced at build time — short children are kept.

@@ -1,0 +1,285 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Article Literature Card",
+  "description": "Structured extraction schema v0.1.0 for a single biomedical article.",
+  "type": "object",
+  "required": ["schema_version", "article_id", "metadata", "modules", "extraction_metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version string, e.g. '0.1.0'"
+    },
+    "article_id": {
+      "type": "string",
+      "description": "Unique identifier matching the article folder name, e.g. 'pdf_abc123'"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["title", "authors", "journal", "year", "doi", "article_type"],
+      "additionalProperties": false,
+      "properties": {
+        "title":        { "type": ["string", "null"] },
+        "authors":      { "type": "array", "items": { "type": "string" } },
+        "journal":      { "type": ["string", "null"] },
+        "year":         { "type": ["integer", "null"] },
+        "doi":          { "type": ["string", "null"] },
+        "article_type": { "type": ["string", "null"] }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "required": [
+        "research_question",
+        "study_design",
+        "samples_and_cohorts",
+        "data_source_and_provenance",
+        "omics_and_experimental_methods",
+        "computational_analysis_pipeline",
+        "key_findings",
+        "mechanism_model",
+        "author_reported_limitations_and_future_directions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "research_question": {
+          "type": "object",
+          "required": ["summary", "disease_context", "biological_context", "main_question", "stated_gap", "study_type", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":            { "type": ["string", "null"] },
+            "disease_context":    { "type": "array", "items": { "type": "string" } },
+            "biological_context": { "type": "array", "items": { "type": "string" } },
+            "main_question":      { "type": ["string", "null"] },
+            "stated_gap":         { "type": ["string", "null"] },
+            "study_type":         { "type": "array", "items": { "type": "string" } },
+            "evidence":           { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "study_design": {
+          "type": "object",
+          "required": ["summary", "design_features", "comparison_groups", "discovery_validation_structure", "perturbation_or_intervention", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":                          { "type": ["string", "null"] },
+            "design_features":                  { "type": "array", "items": { "type": "string" } },
+            "comparison_groups":                { "type": "array", "items": { "$ref": "#/definitions/comparison_group_object" } },
+            "discovery_validation_structure":   { "type": ["string", "null"] },
+            "perturbation_or_intervention":     { "type": ["string", "null"] },
+            "evidence":                         { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "samples_and_cohorts": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/sample_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "data_source_and_provenance": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/data_source_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "omics_and_experimental_methods": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/method_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "computational_analysis_pipeline": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/analysis_step_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "key_findings": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/finding_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "mechanism_model": {
+          "type": "object",
+          "required": ["summary", "claims", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "claims":   { "type": "array", "items": { "$ref": "#/definitions/mechanism_claim_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        },
+        "author_reported_limitations_and_future_directions": {
+          "type": "object",
+          "required": ["summary", "items", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":  { "type": ["string", "null"] },
+            "items":    { "type": "array", "items": { "$ref": "#/definitions/limitation_object" } },
+            "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+          }
+        }
+      }
+    },
+    "extraction_metadata": {
+      "type": "object",
+      "required": ["extraction_method", "created_at", "source_files", "module_status", "warnings"],
+      "additionalProperties": false,
+      "properties": {
+        "extraction_method": { "type": ["string", "null"] },
+        "created_at":        { "type": ["string", "null"] },
+        "source_files":      { "type": "array", "items": { "type": "string" } },
+        "module_status":     { "type": "object" },
+        "warnings":          { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "definitions": {
+    "evidence_object": {
+      "type": "object",
+      "required": ["parent_id", "section_path"],
+      "additionalProperties": false,
+      "properties": {
+        "parent_id":       { "type": "string" },
+        "section_path":    { "type": "array", "items": { "type": "string" } },
+        "supporting_text": { "type": ["string", "null"] },
+        "char_start":      { "type": ["integer", "null"] },
+        "char_end":        { "type": ["integer", "null"] }
+      }
+    },
+    "comparison_group_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "group_a":             { "type": ["string", "null"] },
+        "group_b":             { "type": ["string", "null"] },
+        "comparison_purpose":  { "type": ["string", "null"] },
+        "evidence":            { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "sample_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sample_or_cohort_name":  { "type": ["string", "null"] },
+        "species":                { "type": ["string", "null"] },
+        "disease_or_condition":   { "type": ["string", "null"] },
+        "sample_material":        { "type": "array", "items": { "type": "string" } },
+        "sample_count":           { "type": ["integer", "null"] },
+        "paired_design":          { "type": ["boolean", "null"] },
+        "treatment_context":      { "type": ["string", "null"] },
+        "timepoint":              { "type": ["string", "null"] },
+        "sorting_or_enrichment":  { "type": ["string", "null"] },
+        "used_for":               { "type": "array", "items": { "type": "string" } },
+        "evidence":               { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "data_source_object": {
+      "type": "object",
+      "required": ["source_type"],
+      "additionalProperties": false,
+      "properties": {
+        "dataset_name":               { "type": ["string", "null"] },
+        "data_modality":              { "type": ["string", "null"] },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "generated_in_this_study",
+            "external_public_data",
+            "external_published_cohort",
+            "external_database",
+            "unclear"
+          ]
+        },
+        "external_database_or_cohort": { "type": ["string", "null"] },
+        "accession_id":                { "type": ["string", "null"] },
+        "generated_in_this_study":     { "type": ["boolean", "null"] },
+        "used_for":                    { "type": ["string", "null"] },
+        "evidence":                    { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "method_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method":                  { "type": ["string", "null"] },
+        "data_type":               { "type": ["string", "null"] },
+        "modality_category":       { "type": ["string", "null"] },
+        "sample_material":         { "type": ["string", "null"] },
+        "generated_in_this_study": { "type": ["boolean", "null"] },
+        "purpose":                 { "type": ["string", "null"] },
+        "evidence":                { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "analysis_step_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "analysis_step":             { "type": ["string", "null"] },
+        "software_or_method":        { "type": "array", "items": { "type": "string" } },
+        "input_data":                { "type": ["string", "null"] },
+        "output":                    { "type": ["string", "null"] },
+        "parameters_or_thresholds":  { "type": ["string", "null"] },
+        "evidence":                  { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "finding_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "finding":              { "type": ["string", "null"] },
+        "associated_data":      { "type": "array", "items": { "type": "string" } },
+        "associated_entities":  { "type": "array", "items": { "type": "string" } },
+        "result_type":          { "type": ["string", "null"] },
+        "evidence":             { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "mechanism_claim_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mechanism_chain":                    { "type": "array", "items": { "type": "string" } },
+        "upstream_factor":                    { "type": ["string", "null"] },
+        "mediators":                          { "type": "array", "items": { "type": "string" } },
+        "downstream_effect":                  { "type": ["string", "null"] },
+        "involved_cell_types":                { "type": "array", "items": { "type": "string" } },
+        "involved_pathways_or_molecules":     { "type": "array", "items": { "type": "string" } },
+        "therapeutic_or_clinical_implication": { "type": ["string", "null"] },
+        "evidence":                           { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    },
+    "limitation_object": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["limitation", "caveat", "future_direction"]
+        },
+        "text":     { "type": ["string", "null"] },
+        "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence_object" } }
+      }
+    }
+  }
+}
