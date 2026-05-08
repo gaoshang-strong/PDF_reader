@@ -68,15 +68,32 @@ def assemble_reading_text(parents: list[dict]) -> str:
 
 def load_metadata(article_id: str, data_root: Path) -> dict | None:
     """Load metadata.json if it exists; return None otherwise."""
-    path = data_root / "working" / article_id / "metadata.json"
+    path = data_root / "articles" / article_id / "metadata.json"
     if path.exists():
         with open(path) as f:
             return json.load(f)
     return None
 
 
+def _clean_title(title: str | None) -> str | None:
+    """Strip GROBID web artifacts from parsed titles."""
+    if not title:
+        return title
+    # GROBID sometimes scrapes journal page UI text (e.g. "Check for updates")
+    # into the title when parsing PDFs downloaded from publisher websites.
+    for prefix in ("Check for updates", "check for updates"):
+        if title.startswith(prefix):
+            title = title[len(prefix):].lstrip()
+    return title or None
+
+
 def build_metadata_block(raw: dict | None) -> dict:
-    """Return a schema-conforming metadata block."""
+    """Return a schema-conforming metadata block.
+
+    Handles both naming conventions from Step 1:
+      - doi / DOI
+      - year / publication_year
+    """
     if raw is None:
         return {
             "title": None,
@@ -87,11 +104,11 @@ def build_metadata_block(raw: dict | None) -> dict:
             "article_type": None,
         }
     return {
-        "title": raw.get("title"),
+        "title": _clean_title(raw.get("title")),
         "authors": raw.get("authors") or [],
         "journal": raw.get("journal"),
-        "year": raw.get("year"),
-        "doi": raw.get("doi"),
+        "year": raw.get("year") or raw.get("publication_year"),
+        "doi": raw.get("doi") or raw.get("DOI"),
         "article_type": raw.get("article_type"),
     }
 
@@ -364,7 +381,7 @@ def extract_article_card(
         "input_paths": {
             "parents_jsonl": str(root / "index" / article_id / "parents.jsonl"),
             "schema": str(SCHEMA_PATH),
-            "metadata_json": str(root / "working" / article_id / "metadata.json"),
+            "metadata_json": str(root / "articles" / article_id / "metadata.json"),
         },
         "output_paths": {
             "article_card": str(card_path),

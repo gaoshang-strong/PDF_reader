@@ -466,8 +466,8 @@ def test_metadata_fallback_when_missing(tmp_root, fake_client):
 
 
 def test_metadata_loaded_when_present(tmp_root, fake_client):
-    working_dir = tmp_root / "working" / ARTICLE_ID
-    working_dir.mkdir(parents=True)
+    articles_dir = tmp_root / "articles" / ARTICLE_ID
+    articles_dir.mkdir(parents=True)
     metadata = {
         "title": "PNI and immune exclusion in CRC",
         "authors": ["Smith J", "Lee K"],
@@ -476,7 +476,7 @@ def test_metadata_loaded_when_present(tmp_root, fake_client):
         "doi": "10.1000/xyz123",
         "article_type": "research article",
     }
-    (working_dir / "metadata.json").write_text(json.dumps(metadata))
+    (articles_dir / "metadata.json").write_text(json.dumps(metadata))
 
     card = extract_article_card(
         ARTICLE_ID,
@@ -500,6 +500,19 @@ def test_build_metadata_block_partial():
     assert block["title"] == "Test"
     assert block["year"] == 2023
     assert block["authors"] == []
+
+
+def test_build_metadata_block_alternative_field_names():
+    """Step 1 writes DOI (uppercase) and publication_year — both should be handled."""
+    block = build_metadata_block({"title": "T", "DOI": "10.1/x", "publication_year": 2025})
+    assert block["doi"] == "10.1/x"
+    assert block["year"] == 2025
+
+
+def test_build_metadata_block_strips_check_for_updates():
+    """GROBID sometimes prepends 'Check for updates' to titles scraped from publisher pages."""
+    block = build_metadata_block({"title": "Check for updates Dynamics of T cells in cancer"})
+    assert block["title"] == "Dynamics of T cells in cancer"
 
 
 # ---------------------------------------------------------------------------
